@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
 import { errorHandler } from "./middleware/error";
+import { pool } from "./database";
 
 const app = express();
 
@@ -17,6 +18,15 @@ app.use(cookieParser());
 // Health route
 app.get("/health", (req, res) => {
   res.status(200).json({ ok: true, service: "api", uptime: process.uptime() });
+});
+
+app.get("/health/db", async (req, res, next) => {
+  try {
+    await pool.query("SELECT 1;");
+    res.status(200).json({ db: "ok" });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use((req, res, next) => {
