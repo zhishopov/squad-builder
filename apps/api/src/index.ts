@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import { errorHandler } from "./middleware/error";
 import { pool } from "./database";
+import authRoutes from "./modules/auth/auth.routes";
 
 const app = express();
 
@@ -15,7 +16,7 @@ app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// Health route
+// Routes
 app.get("/health", (req, res) => {
   res.status(200).json({ ok: true, service: "api", uptime: process.uptime() });
 });
@@ -28,6 +29,8 @@ app.get("/health/db", async (req, res, next) => {
     next(error);
   }
 });
+
+app.use("/auth", authRoutes);
 
 app.use((req, res, next) => {
   const error = new Error("Not Found") as any;

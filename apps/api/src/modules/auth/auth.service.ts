@@ -74,8 +74,8 @@ export async function getCurrentUserFromCookie(req: Request) {
       sub: string;
       email: string;
       role: Role;
-      issuedAt: number;
-      expiration: number;
+      iat: number;
+      exp: number;
     };
 
     return payload;

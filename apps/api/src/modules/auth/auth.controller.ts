@@ -16,7 +16,7 @@ export async function signup(req: Request, res: Response, next: NextFunction) {
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
     const data = loginSchema.parse(req.body);
-    const token = authService.login(data);
+    const token = await authService.login(data);
 
     const isProduction = process.env.NODE_ENV === "production";
     const cookieName = process.env.COOKIE_NAME || "auth_token";
