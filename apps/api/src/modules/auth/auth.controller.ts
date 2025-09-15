@@ -49,3 +49,21 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
+
+export async function getCurrentUser(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const payload = await authService.getCurrentUserFromCookie(req);
+
+    if (!payload) {
+      return res.status(401).json({ error: "Not Authenticated" });
+    }
+
+    res.json({ id: payload.sub, email: payload.email, role: payload.role });
+  } catch (error) {
+    next(error);
+  }
+}
