@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { pool } from "../../database";
+import { Request } from "express";
 
 type Role = "COACH" | "PLAYER";
 
@@ -61,4 +62,24 @@ export async function login(input: { email: string; password: string }) {
   );
 
   return token;
+}
+
+export async function getCurrentUserFromCookie(req: Request) {
+  const token = req.cookies?.[COOKIE_NAME];
+
+  if (!token) return null;
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as {
+      sub: string;
+      email: string;
+      role: Role;
+      issuedAt: number;
+      expiration: number;
+    };
+
+    return payload;
+  } catch {
+    return null;
+  }
 }
