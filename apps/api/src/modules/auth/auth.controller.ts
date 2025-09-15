@@ -33,3 +33,19 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
+
+export async function logout(req: Request, res: Response, next: NextFunction) {
+  try {
+    const cookieName = process.env.COOKIE_NAME || "auth_token";
+
+    res.clearCookie(cookieName, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+}
