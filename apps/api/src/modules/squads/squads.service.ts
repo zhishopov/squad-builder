@@ -11,7 +11,6 @@ export async function createSquad(input: { name: string; coachId: number }) {
   );
 
   const count = existingCoach.rowCount ?? 0;
-
   if (count > 0) {
     throw Object.assign(new Error("Coach already owns a squad"), {
       status: 400,
@@ -37,7 +36,6 @@ export async function getSquadById(squadId: number) {
   );
 
   const squad = squadResponse.rows[0];
-
   if (!squad) {
     throw Object.assign(new Error("Squad not found"), { status: 404 });
   }
@@ -50,15 +48,15 @@ export async function getSquadById(squadId: number) {
       u.role,
       sm.preferred_position,
       sm.created_at
-      FROM squad_memebers sm
-      JOIN users u ON u.id=sm.user_id
-      WHERE sm.squad_id=$1
-      ORDER BY sm.created_at ASC`,
+     FROM squad_members sm
+     JOIN users u ON u.id = sm.user_id
+    WHERE sm.squad_id=$1
+    ORDER BY sm.created_at ASC`,
     [squadId]
   );
 
   return {
-    id: squadId,
+    id: squad.id,
     name: squad.name,
     coachId: squad.coach_id,
     createdAt: squad.created_at,
@@ -75,7 +73,7 @@ export async function getSquadById(squadId: number) {
 export async function addMember(input: {
   squadId: number;
   userId: number;
-  preferredPosition?: string | null;
+  preferredPosition: string;
   actingCoachId: number; // coach making the request
 }) {
   // Check squad exists and is owned by coach making the request(actingCoachId)
@@ -83,7 +81,6 @@ export async function addMember(input: {
     `SELECT id, coach_id FROM squads WHERE id=$1`,
     [input.squadId]
   );
-
   const squad = squadResponse.rows[0];
 
   if (!squad) {
@@ -100,7 +97,6 @@ export async function addMember(input: {
     `SELECT id, role, email FROM users WHERE id=$1`,
     [input.userId]
   );
-
   const user = userResponse.rows[0];
 
   if (!user) {
@@ -114,7 +110,7 @@ export async function addMember(input: {
 
   // Check if Player is already a member of squad
   const playerExistsResponse = await pool.query(
-    `SELECT id FROM squad_member WHERE squad_id=$1 AND user_id=$2`,
+    `SELECT id FROM squad_members WHERE squad_id=$1 AND user_id=$2`,
     [input.squadId, input.userId]
   );
 
@@ -130,7 +126,7 @@ export async function addMember(input: {
     `INSERT INTO squad_members (squad_id, user_id, preferred_position)
      VALUES ($1, $2, $3)
      RETURNING id, squad_id, user_id, preferred_position, created_at`,
-    [input.squadId, input.userId, input.preferredPosition ?? null]
+    [input.squadId, input.userId, input.preferredPosition]
   );
 
   const member = result.rows[0];
