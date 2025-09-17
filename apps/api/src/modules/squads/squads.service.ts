@@ -71,3 +71,76 @@ export async function getSquadById(squadId: number) {
     })),
   };
 }
+
+export async function addMember(input: {
+  squadId: number;
+  userId: number;
+  preferredPosition?: string | null;
+  actingCoachId: number; // coach making the request
+}) {
+  // Check squad exists and is owned by coach making the request(actingCoachId)
+  const squadResponse = await pool.query(
+    `SELECT id, coach_id FROM squads WHERE id=$1`,
+    [input.squadId]
+  );
+
+  const squad = squadResponse.rows[0];
+
+  if (!squad) {
+    throw Object.assign(new Error("Squad not found"), { status: 404 });
+  }
+  if (Number(squad.coach_id) !== Number(input.actingCoachId)) {
+    throw Object.assign(new Error("Forbidden: you do not own this squad"), {
+      status: 403,
+    });
+  }
+
+  // Check user exists and is a Player
+  const userResponse = await pool.query(
+    `SELECT id, role, email FROM users WHERE id=$1`,
+    [input.userId]
+  );
+
+  const user = userResponse.rows[0];
+
+  if (!user) {
+    throw Object.assign(new Error("User not found"), { status: 400 });
+  }
+  if (user.role !== "PLAYER") {
+    throw Object.assign(new Error("Only players can be added to a squad"), {
+      status: 400,
+    });
+  }
+
+  // Check if Player is already a member of squad
+  const playerExistsResponse = await pool.query(
+    `SELECT id FROM squad_member WHERE squad_id=$1 AND user_id=$2`,
+    [input.squadId, input.userId]
+  );
+
+  const count = playerExistsResponse.rowCount ?? 0;
+  if (count > 0) {
+    throw Object.assign(new Error("User is already a member of this squad"), {
+      status: 400,
+    });
+  }
+
+  // Insert membership
+  const result = await pool.query(
+    `INSERT INTO squad_members (squad_id, user_id, preferred_position)
+     VALUES ($1, $2, $3)
+     RETURNING id, squad_id, user_id, preferred_position, created_at`,
+    [input.squadId, input.userId, input.preferredPosition ?? null]
+  );
+
+  const member = result.rows[0];
+
+  return {
+    id: member.id,
+    squadId: member.squad_id,
+    userId: member.user_id,
+    email: user.email as string,
+    preferredPosition: member.preferred_position as string | null,
+    createdAt: member.created_at as Date,
+  };
+}
