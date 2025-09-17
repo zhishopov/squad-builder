@@ -5,6 +5,7 @@ import express from "express";
 import { errorHandler } from "./middleware/error";
 import { pool } from "./database";
 import authRoutes from "./modules/auth/auth.routes";
+import squadRoutes from "./modules/squads/squads.routes";
 
 const app = express();
 
@@ -31,12 +32,14 @@ app.get("/health/db", async (req, res, next) => {
 });
 
 app.use("/auth", authRoutes);
+app.use("/", squadRoutes);
 
 app.use((req, res, next) => {
   const error = new Error("Not Found") as any;
   error.status = 404;
   next(error);
 });
+
 app.use(errorHandler);
 
 app.listen(PORT, () => {
