@@ -144,3 +144,27 @@ export async function addMember(input: {
     createdAt: member.created_at as Date,
   };
 }
+
+export async function getSquadForUser(input: { userId: number; role: Role }) {
+  if (input.role === "COACH") {
+    const response = await pool.query(
+      `SELECT id, name, coach_id, created_at FROM squads WHERE coach_id=$1`,
+      [input.userId]
+    );
+
+    return response.rows[0] || null;
+  }
+
+  // Player
+  const response = await pool.query(
+    `SELECT s.id, s.name, s.coach_id, s.created_at
+       FROM squad_members sm
+       JOIN squads s ON s.id = sm.squad_id
+      WHERE sm.user_id = $1
+      ORDER BY sm.created_at ASC
+      LIMIT 1`,
+    [input.userId]
+  );
+
+  return response.rows[0] || null;
+}
