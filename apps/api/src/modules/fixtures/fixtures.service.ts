@@ -89,3 +89,72 @@ export async function listFixturesForSquad(squadId: number) {
 
   return fixtureResponse.rows;
 }
+
+export async function setAvailability(input: {
+  fixtureId: number;
+  userId: number;
+  availability: Availability;
+}) {
+  const fixtureResponse = await pool.query(
+    `SELECT id, squad_id FROM fixtures WHERE id=$1`,
+    [input.fixtureId]
+  );
+
+  const fixture = fixtureResponse.rows[0];
+  if (!fixture) {
+    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+  }
+
+  const userResponse = await pool.query(
+    `SELECT id, role FROM users WHERE id=$1`,
+    [input.userId]
+  );
+
+  const user = userResponse.rows[0];
+  if (!user) {
+    throw Object.assign(new Error("User not found"), { status: 400 });
+  }
+  if (user.role !== "PLAYER") {
+    throw Object.assign(new Error("Only players can set availability"), {
+      status: 403,
+    });
+  }
+
+  const memberResponse = await pool.query(
+    `SELECT id, FROM squad_members WHERE squad_id=$1 AND user_id=$2`,
+    [fixture.squad_id, input.userId]
+  );
+
+  const memberCount = memberResponse.rowCount ?? 0;
+  if (memberCount === 0) {
+    throw Object.assign(
+      new Error("You are not a member of the fixture's squad"),
+      { status: 403 }
+    );
+  }
+
+  const updateResponse = await pool.query(
+    `UPDATE fixture_availability SET availability=$1, update_at=now() WHERE fixture_id=$2 AND user_id=$3`,
+    [input.availability, input.fixtureId, input.userId]
+  );
+
+  const updatedCount = updateResponse.rowCount ?? 0;
+  if (updatedCount === 0) {
+    const insertResponse = await pool.query(
+      `INSERT INTO fixture_availability (fixture_id, user_id, availability)
+       VALUES ($1, $2, $3)
+       RETURNING id, fixture_id, user_id, availability, updated_at`,
+      [input.fixtureId, input.userId, input.availability]
+    );
+
+    return insertResponse.rows[0];
+  }
+
+  const finalResponse = await pool.query(
+    `SELECT id, fixture_id, user_id, availability, updated_at FROM fixture_availability
+     WHERE fixture_id=$1 AND user_id=$2`,
+    [input.fixtureId, input.userId]
+  );
+
+  return finalResponse.rows[0];
+}
