@@ -25,7 +25,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? "none" : "lax",
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     res.status(200).json({ ok: true });

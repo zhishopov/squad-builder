@@ -17,7 +17,6 @@ export async function createSquad(input: { name: string; coachId: number }) {
     });
   }
 
-  // Insert new squad into db
   const result = await pool.query(
     `INSERT INTO squads (name, coach_id)
      VALUES ($1, $2)
@@ -29,7 +28,6 @@ export async function createSquad(input: { name: string; coachId: number }) {
 }
 
 export async function getSquadById(squadId: number) {
-  // Fetch squad from db
   const squadResponse = await pool.query(
     `SELECT id, name, coach_id, created_at FROM squads WHERE id=$1`,
     [squadId]
@@ -40,7 +38,6 @@ export async function getSquadById(squadId: number) {
     throw Object.assign(new Error("Squad not found"), { status: 404 });
   }
 
-  // Fetch members from db
   const membersResponse = await pool.query(
     `SELECT 
       sm.user_id,
@@ -74,9 +71,8 @@ export async function addMember(input: {
   squadId: number;
   userId: number;
   preferredPosition: string;
-  actingCoachId: number; // coach making the request
+  actingCoachId: number;
 }) {
-  // Check squad exists and is owned by coach making the request(actingCoachId)
   const squadResponse = await pool.query(
     `SELECT id, coach_id FROM squads WHERE id=$1`,
     [input.squadId]
@@ -92,7 +88,6 @@ export async function addMember(input: {
     });
   }
 
-  // Check user exists and is a Player
   const userResponse = await pool.query(
     `SELECT id, role, email FROM users WHERE id=$1`,
     [input.userId]
@@ -108,7 +103,6 @@ export async function addMember(input: {
     });
   }
 
-  // Check if Player is already a member of squad
   const playerExistsResponse = await pool.query(
     `SELECT id FROM squad_members WHERE squad_id=$1 AND user_id=$2`,
     [input.squadId, input.userId]
@@ -121,7 +115,6 @@ export async function addMember(input: {
     });
   }
 
-  // Insert membership
   const result = await pool.query(
     `INSERT INTO squad_members (squad_id, user_id, preferred_position)
      VALUES ($1, $2, $3)
@@ -151,7 +144,6 @@ export async function getSquadForUser(input: { userId: number; role: Role }) {
     return response.rows[0] || null;
   }
 
-  // Player
   const response = await pool.query(
     `SELECT s.id, s.name, s.coach_id, s.created_at
        FROM squad_members sm
