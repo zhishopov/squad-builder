@@ -7,7 +7,7 @@ export type Availability = "YES" | "NO" | "MAYBE";
 export async function createFixture(input: {
   squadId: number;
   opponent: string;
-  kickOffAt: string;
+  kickoffAt: string;
   actingCoachId: number;
   location?: string;
   notes?: string;
@@ -36,7 +36,7 @@ export async function createFixture(input: {
     `INSERT INTO fixtures (squad_id, opponent, kickoff_at, location, notes)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id, squad_id, opponent, kickoff_at, location, notes, created_at`,
-    [input.squadId, opponent, input.kickOffAt, location, notes]
+    [input.squadId, opponent, input.kickoffAt, location, notes]
   );
 
   return fixture.rows[0];
