@@ -4,12 +4,12 @@
  * @param {MigrationBuilder} pgm
  */
 exports.up = (pgm) => {
-  pgm.createTable("squad_members", {
+  pgm.createTable("fixture_availability", {
     id: "id",
-    squad_id: {
+    fixture_id: {
       type: "integer",
       notNull: true,
-      references: '"squads"(id)',
+      references: '"fixtures"(id)',
       onDelete: "CASCADE",
     },
     user_id: {
@@ -18,25 +18,29 @@ exports.up = (pgm) => {
       references: '"users"(id)',
       onDelete: "CASCADE",
     },
-    preferred_position: { type: "varchar(10)", notNull: false },
-    created_at: {
+    availability: { type: "varchar(10)", notNull: true },
+    updated_at: {
       type: "timestamp",
       notNull: true,
       default: pgm.func("now()"),
     },
   });
 
-  pgm.addConstraint("squad_members", "squad_members_unique_member_per_squad", {
-    unique: ["squad_id", "user_id"],
-  });
+  pgm.addConstraint(
+    "fixture_availability",
+    "fixture_availability_unique_user_per_fixture",
+    {
+      unique: ["fixture_id", "user_id"],
+    }
+  );
 
-  pgm.createIndex("squad_members", ["squad_id"]);
-  pgm.createIndex("squad_members", ["user_id"]);
+  pgm.createIndex("fixture_availability", ["fixture_id"]);
+  pgm.createIndex("fixture_availability", ["user_id"]);
 };
 
 /**
  * @param {MigrationBuilder} pgm
  */
 exports.down = (pgm) => {
-  pgm.dropTable("squad_members");
+  pgm.dropTable("fixture_availability");
 };

@@ -4,16 +4,18 @@
  * @param {MigrationBuilder} pgm
  */
 exports.up = (pgm) => {
-  pgm.createTable("squads", {
+  pgm.createTable("fixtures", {
     id: "id",
-    name: { type: "varchar(100)", notNull: true },
-    coach_id: {
+    squad_id: {
       type: "integer",
       notNull: true,
-      references: '"users"(id)',
-      // user removed -> squad is removed too
+      references: '"squads"(id)',
       onDelete: "CASCADE",
     },
+    opponent: { type: "varchar(100)", notNull: true },
+    kickoff_at: { type: "timestamp", notNull: true },
+    location: { type: "varchar(120)", notNull: false },
+    notes: { type: "text", notNull: false },
     created_at: {
       type: "timestamp",
       notNull: true,
@@ -21,16 +23,12 @@ exports.up = (pgm) => {
     },
   });
 
-  pgm.addConstraint("squads", "squads_coach_id_unique", {
-    unique: "coach_id",
-  });
-
-  pgm.createIndex("squads", ["coach_id"]);
+  pgm.createIndex("fixtures", ["squad_id", "kickoff_at"]);
 };
 
 /**
  * @param {MigrationBuilder} pgm
  */
 exports.down = (pgm) => {
-  pgm.dropTable("squads");
+  pgm.dropTable("fixtures");
 };

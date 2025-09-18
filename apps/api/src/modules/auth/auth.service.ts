@@ -16,7 +16,6 @@ export async function signup(input: {
   const email = input.email.toLowerCase().trim();
   const hash = await bcrypt.hash(input.password, 10);
 
-  // Insert user into db
   const result = await pool.query(
     `INSERT INTO users (email, password_hash, role)
      VALUES ($1, $2, $3)
@@ -47,7 +46,6 @@ export async function login(input: { email: string; password: string }) {
   );
 
   if (!isValidPassword) {
-    // client error so we attach a status
     throw Object.assign(new Error("Invalid credentials"), { status: 400 });
   }
 

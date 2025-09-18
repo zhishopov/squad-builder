@@ -55,16 +55,13 @@ export async function getSquad(
   next: NextFunction
 ) {
   try {
-    // Validate URL param id and convert to number
     const { id } = squadIdParamSchema.parse(req.params);
 
-    // Current user
     const user = (req as any).user as ReqUser | undefined;
     if (!user) {
       return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
     }
 
-    // Load squad (includes members)
     const squad = await squadsService.getSquadById(id);
 
     const isOwner =

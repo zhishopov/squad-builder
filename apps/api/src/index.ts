@@ -12,12 +12,12 @@ const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
 
-// Middlewares
+
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// Routes
+
 app.get("/health", (req, res) => {
   res.status(200).json({ ok: true, service: "api", uptime: process.uptime() });
 });
