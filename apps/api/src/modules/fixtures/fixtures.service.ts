@@ -42,3 +42,40 @@ export async function createFixture(input: {
 
   return fixture.rows[0];
 }
+
+export async function getFixtureById(fixtureId: number) {
+  const fixtureResponse = await pool.query(
+    `SELECT id, squad_id, opponent, kickoff_at, location, notes, created_at
+     FROM fixtures WHERE id=$1`,
+    [fixtureId]
+  );
+
+  const fixture = fixtureResponse.rows[0];
+  if (!fixture) {
+    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+  }
+
+  const availabilityResponse = await pool.query(
+    `SELECT fa.user_id, u.email, u.role, fa.availability, fa.updated_at
+     FROM fixture_availability fa JOIN users u ON u.id=fa.user_id WHERE fa.fixture_id=$1
+     ORDER BY fa.updated_at DESC`,
+    [fixtureId]
+  );
+
+  return {
+    id: fixture.id,
+    squadId: fixture.squad_id,
+    opponent: fixture.opponent,
+    kickoffAt: fixture.kickoff_at as Date,
+    location: fixture.location as string | null,
+    notes: fixture.notes as string | null,
+    createdAt: fixture.created_at as Date,
+    availability: availabilityResponse.rows.map((row) => ({
+      userId: row.user_id,
+      email: row.email as string,
+      role: row.role as Role,
+      availability: row.availability as Availability,
+      updatedAt: row.updated_at as Date,
+    })),
+  };
+}
