@@ -1,4 +1,3 @@
-import { fi } from "zod/v4/locales";
 import { pool } from "../../database";
 
 type Role = "COACH" | "PLAYER";
@@ -82,7 +81,7 @@ export async function getFixtureById(fixtureId: number) {
 
 export async function listFixturesForSquad(squadId: number) {
   const fixtureResponse = await pool.query(
-    `SELCT id, squad_id, opponent, kickoff_at, location, created_at
+    `SELECT id, squad_id, opponent, kickoff_at, location, created_at
      FROM fixtures WHERE squad_id=$1 ORDER BY kickoff_at ASC`,
     [squadId]
   );
@@ -94,6 +93,8 @@ export async function setAvailability(input: {
   fixtureId: number;
   userId: number;
   availability: Availability;
+  actingUserId?: number;
+  actingUserRole?: Role;
 }) {
   const fixtureResponse = await pool.query(
     `SELECT id, squad_id FROM fixtures WHERE id=$1`,
@@ -105,9 +106,19 @@ export async function setAvailability(input: {
     throw Object.assign(new Error("Fixture not found"), { status: 404 });
   }
 
+  let targetUserId = input.userId;
+  if (input.actingUserRole === "PLAYER") {
+    if (!input.actingUserId) {
+      throw Object.assign(new Error("Unauthorized"), { status: 401 });
+    }
+    targetUserId = input.actingUserId;
+  } else if (input.actingUserRole === "COACH") {
+    targetUserId = input.userId;
+  }
+
   const userResponse = await pool.query(
     `SELECT id, role FROM users WHERE id=$1`,
-    [input.userId]
+    [targetUserId]
   );
 
   const user = userResponse.rows[0];
@@ -121,8 +132,8 @@ export async function setAvailability(input: {
   }
 
   const memberResponse = await pool.query(
-    `SELECT id, FROM squad_members WHERE squad_id=$1 AND user_id=$2`,
-    [fixture.squad_id, input.userId]
+    `SELECT id FROM squad_members WHERE squad_id=$1 AND user_id=$2`,
+    [fixture.squad_id, targetUserId]
   );
 
   const memberCount = memberResponse.rowCount ?? 0;
@@ -134,8 +145,8 @@ export async function setAvailability(input: {
   }
 
   const updateResponse = await pool.query(
-    `UPDATE fixture_availability SET availability=$1, update_at=now() WHERE fixture_id=$2 AND user_id=$3`,
-    [input.availability, input.fixtureId, input.userId]
+    `UPDATE fixture_availability SET availability=$1, updated_at=now() WHERE fixture_id=$2 AND user_id=$3`,
+    [input.availability, input.fixtureId, targetUserId]
   );
 
   const updatedCount = updateResponse.rowCount ?? 0;
@@ -144,7 +155,7 @@ export async function setAvailability(input: {
       `INSERT INTO fixture_availability (fixture_id, user_id, availability)
        VALUES ($1, $2, $3)
        RETURNING id, fixture_id, user_id, availability, updated_at`,
-      [input.fixtureId, input.userId, input.availability]
+      [input.fixtureId, targetUserId, input.availability]
     );
 
     return insertResponse.rows[0];
@@ -153,7 +164,7 @@ export async function setAvailability(input: {
   const finalResponse = await pool.query(
     `SELECT id, fixture_id, user_id, availability, updated_at FROM fixture_availability
      WHERE fixture_id=$1 AND user_id=$2`,
-    [input.fixtureId, input.userId]
+    [input.fixtureId, targetUserId]
   );
 
   return finalResponse.rows[0];

@@ -43,4 +43,5 @@ export const createFixtureSchema = z.object({
 
 export const setAvailabilitySchema = z.object({
   availability: AvailabilityEnum,
+  userId: z.number().int().positive().optional(),
 });
