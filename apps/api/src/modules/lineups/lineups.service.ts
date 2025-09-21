@@ -160,3 +160,45 @@ export async function createLineup(input: {
     throw err;
   }
 }
+
+export async function getLineup(fixtureId: number) {
+  const lineupResponse = await pool.query(
+    `SELECT id FROM lineups WHERE fixture_id=$1`,
+    [fixtureId]
+  );
+
+  if ((lineupResponse.rowCount ?? 0) === 0) {
+    return {
+      fixtureId,
+      lineupId: null,
+      players: [] as Array<{
+        userId: number;
+        email: string;
+        position: string;
+        order: number;
+      }>,
+    };
+  }
+
+  const lineupId = lineupResponse.rows[0].id;
+
+  const rowsResponse = await pool.query(
+    `SELECT lp.user_id, u.email, lp.position, lp.order_index
+     FROM lineup_players lp
+     JOIN users u ON u.id = lp.user_id
+     WHERE lp.lineup_id=$1
+     ORDER BY lp.order_index ASC`,
+    [lineupId]
+  );
+
+  return {
+    fixtureId,
+    lineupId,
+    players: rowsResponse.rows.map((row) => ({
+      userId: row.user_id,
+      email: row.email as string,
+      position: row.position as string,
+      order: Number(row.order_index),
+    })),
+  };
+}
