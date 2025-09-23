@@ -239,3 +239,38 @@ export async function updateFixture(input: {
 
   return updatedFixtureResponse.rows[0];
 }
+
+export async function deleteFixture(input: {
+  fixtureId: number;
+  actingCoachId: number;
+}) {
+  const fixtureResponse = await pool.query(
+    `SELECT f.id, f.squad_id, s.coach_id
+       FROM fixtures f
+       JOIN squads s ON s.id = f.squad_id
+      WHERE f.id=$1`,
+    [input.fixtureId]
+  );
+
+  const fixture = fixtureResponse.rows[0];
+  if (!fixture) {
+    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+  }
+
+  if (Number(fixture.coach_id) !== Number(input.actingCoachId)) {
+    throw Object.assign(new Error("Forbidden: you do not own this squad"), {
+      status: 403,
+    });
+  }
+
+  const deleteResponse = await pool.query(
+    `DELETE FROM fixtures WHERE id=$1 RETURNING id`,
+    [input.fixtureId]
+  );
+
+  if ((deleteResponse.rowCount ?? 0) === 0) {
+    throw Object.assign(new Error("Nothing deleted"), { status: 400 });
+  }
+
+  return { id: deleteResponse.rows[0].id as number, deleted: true };
+}
