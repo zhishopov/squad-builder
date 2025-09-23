@@ -169,3 +169,108 @@ export async function setAvailability(input: {
 
   return finalResponse.rows[0];
 }
+
+export async function updateFixture(input: {
+  fixtureId: number;
+  actingCoachId: number;
+  changes: {
+    opponent?: string;
+    kickoffAt?: string;
+    location?: string;
+    notes?: string;
+  };
+}) {
+  const fixtureResponse = await pool.query(
+    `SELECT f.id, f.squad_id, s.coach_id
+       FROM fixtures f
+       JOIN squads s ON s.id = f.squad_id
+      WHERE f.id=$1`,
+    [input.fixtureId]
+  );
+
+  const fixture = fixtureResponse.rows[0];
+  if (!fixture) {
+    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+  }
+
+  if (Number(fixture.coach_id) !== Number(input.actingCoachId)) {
+    throw Object.assign(new Error("Forbidden: you do not own this squad"), {
+      status: 403,
+    });
+  }
+
+  const updateFields: string[] = [];
+  const updateValues: any[] = [];
+  let paramIndex = 1;
+
+  if (typeof input.changes.opponent === "string") {
+    updateFields.push(`opponent=$${paramIndex++}`);
+    updateValues.push(input.changes.opponent.trim());
+  }
+
+  if (typeof input.changes.kickoffAt === "string") {
+    updateFields.push(`kickoff_at=$${paramIndex++}`);
+    updateValues.push(input.changes.kickoffAt.trim());
+  }
+
+  if (typeof input.changes.location === "string") {
+    const fixtureLocation = input.changes.location.trim();
+    updateFields.push(`location=$${paramIndex++}`);
+    updateValues.push(fixtureLocation.length > 0 ? fixtureLocation : null);
+  }
+
+  if (typeof input.changes.notes === "string") {
+    const fixtureNotes = input.changes.notes.trim();
+    updateFields.push(`notes=$${paramIndex++}`);
+    updateValues.push(fixtureNotes.length > 0 ? fixtureNotes : null);
+  }
+
+  if (updateFields.length === 0) {
+    throw Object.assign(new Error("No fields to update"), { status: 400 });
+  }
+
+  updateValues.push(input.fixtureId);
+
+  const updatedFixtureResponse = await pool.query(
+    `UPDATE fixtures SET ${updateFields.join(", ")} WHERE id=$${paramIndex}
+     RETURNING id, squad_id, opponent, kickoff_at, location, notes, created_at`,
+    updateValues
+  );
+
+  return updatedFixtureResponse.rows[0];
+}
+
+export async function deleteFixture(input: {
+  fixtureId: number;
+  actingCoachId: number;
+}) {
+  const fixtureResponse = await pool.query(
+    `SELECT f.id, f.squad_id, s.coach_id
+       FROM fixtures f
+       JOIN squads s ON s.id = f.squad_id
+      WHERE f.id=$1`,
+    [input.fixtureId]
+  );
+
+  const fixture = fixtureResponse.rows[0];
+  if (!fixture) {
+    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+  }
+
+  if (Number(fixture.coach_id) !== Number(input.actingCoachId)) {
+    throw Object.assign(new Error("Forbidden: you do not own this squad"), {
+      status: 403,
+    });
+  }
+
+  const deleteResponse = await pool.query(
+    `DELETE FROM fixtures WHERE id=$1 RETURNING id`,
+    [input.fixtureId]
+  );
+
+  if ((deleteResponse.rowCount ?? 0) === 0) {
+    throw Object.assign(new Error("Nothing deleted"), { status: 400 });
+  }
+
+  return { id: deleteResponse.rows[0].id as number, deleted: true };
+}

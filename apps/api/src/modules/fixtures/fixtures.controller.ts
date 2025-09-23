@@ -6,6 +6,7 @@ import {
   fixtureIdParamSchema,
   squadIdParamSchema,
   setAvailabilitySchema,
+  updateFixtureSchema,
 } from "./fixtures.validators";
 
 type Role = "COACH" | "PLAYER";
@@ -192,6 +193,87 @@ export async function setAvailability(
     });
 
     res.status(200).json(saved);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateFixture(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const user = (req as any).user as ReqUser | undefined;
+    if (!user) {
+      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+    }
+
+    if (user.role !== "COACH") {
+      return next(
+        Object.assign(new Error("Forbidden: Coach only"), { status: 403 })
+      );
+    }
+
+    const { id: fixtureId } = fixtureIdParamSchema.parse(req.params);
+    const body = updateFixtureSchema.parse(req.body);
+
+    const changes: {
+      opponent?: string;
+      kickoffAt?: string;
+      location?: string;
+      notes?: string;
+    } = {};
+
+    if (body.opponent !== undefined) {
+      changes.opponent = body.opponent;
+    }
+    if (body.kickoffAt !== undefined) {
+      changes.kickoffAt = body.kickoffAt;
+    }
+    if (body.location !== undefined) {
+      changes.location = body.location;
+    }
+    if (body.notes !== undefined) {
+      changes.notes = body.notes;
+    }
+
+    const updatedFixture = await fixturesService.updateFixture({
+      fixtureId,
+      actingCoachId: user.id,
+      changes: changes,
+    });
+
+    res.json(updatedFixture);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteFixture(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const user = (req as any).user as ReqUser | undefined;
+    if (!user) {
+      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+    }
+    if (user.role !== "COACH") {
+      return next(
+        Object.assign(new Error("Forbidden: Coach only"), { status: 403 })
+      );
+    }
+
+    const { id: fixtureId } = fixtureIdParamSchema.parse(req.params);
+
+    const result = await fixturesService.deleteFixture({
+      fixtureId,
+      actingCoachId: user.id,
+    });
+
+    res.json(result);
   } catch (error) {
     next(error);
   }
