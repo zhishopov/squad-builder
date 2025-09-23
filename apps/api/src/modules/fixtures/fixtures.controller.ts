@@ -249,3 +249,32 @@ export async function updateFixture(
     next(error);
   }
 }
+
+export async function deleteFixture(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const user = (req as any).user as ReqUser | undefined;
+    if (!user) {
+      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+    }
+    if (user.role !== "COACH") {
+      return next(
+        Object.assign(new Error("Forbidden: Coach only"), { status: 403 })
+      );
+    }
+
+    const { id: fixtureId } = fixtureIdParamSchema.parse(req.params);
+
+    const result = await fixturesService.deleteFixture({
+      fixtureId,
+      actingCoachId: user.id,
+    });
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
