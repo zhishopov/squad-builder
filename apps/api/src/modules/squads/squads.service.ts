@@ -156,3 +156,36 @@ export async function getSquadForUser(input: { userId: number; role: Role }) {
 
   return response.rows[0] || null;
 }
+
+export async function listSquadMembers(squadId: number) {
+  const squadResponse = await pool.query(`SELECT id FROM squads WHERE id=$1`, [
+    squadId,
+  ]);
+
+  const squad = squadResponse.rows[0];
+  if (!squad) {
+    throw Object.assign(new Error("Squad not found"), { status: 404 });
+  }
+
+  const membersResponse = await pool.query(
+    `SELECT 
+      sm.user_id,
+      u.email,
+      u.role,
+      sm.preferred_position,
+      sm.created_at
+     FROM squad_members sm
+     JOIN users u ON u.id = sm.user_id
+    WHERE sm.squad_id=$1
+    ORDER BY sm.created_at ASC`,
+    [squadId]
+  );
+
+  return membersResponse.rows.map((member) => ({
+    userId: member.user_id,
+    email: member.email as string,
+    role: member.role as Role,
+    preferredPosition: member.preferred_position as string | null,
+    joinedAt: member.created_at as Date,
+  }));
+}
