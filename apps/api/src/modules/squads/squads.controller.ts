@@ -134,3 +134,36 @@ export async function getMySquad(
     next(error);
   }
 }
+
+export async function getSquadMembers(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { id } = squadIdParamSchema.parse(req.params);
+
+    const user = (req as any).user as ReqUser | undefined;
+    if (!user) {
+      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+    }
+
+    const squad = await squadsService.getSquadById(id);
+
+    const isSquadOwner =
+      user.role === "COACH" && Number(squad.coachId) === Number(user.id);
+
+    const isSquadMember = squad.members.some(
+      (member) => Number(member.userId) === Number(user.id)
+    );
+
+    if (!isSquadOwner && !isSquadMember) {
+      return next(Object.assign(new Error("Forbidden"), { status: 403 }));
+    }
+
+    const members = await squadsService.listSquadMembers(id);
+    res.json(members);
+  } catch (error) {
+    next(error);
+  }
+}

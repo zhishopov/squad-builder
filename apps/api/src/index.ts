@@ -8,6 +8,7 @@ import authRoutes from "./modules/auth/auth.routes";
 import squadRoutes from "./modules/squads/squads.routes";
 import fixtureRoutes from "./modules/fixtures/fixtures.routes";
 import lineupsRoutes from "./modules/lineups/lineups.routes";
+import usersRoutes from "./modules/users/users.routes";
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use("/auth", authRoutes);
 app.use("/", squadRoutes);
 app.use("/", fixtureRoutes);
 app.use("/", lineupsRoutes);
+app.use("/", usersRoutes);
 
 app.use((req, res, next) => {
   const error = new Error("Not Found") as any;
