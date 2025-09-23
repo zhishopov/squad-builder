@@ -5,6 +5,7 @@ import {
   getSquad,
   addMember,
   getMySquad,
+  getSquadMembers,
 } from "./squads.controller";
 
 const router = Router();
@@ -12,6 +13,7 @@ const router = Router();
 router.post("/squads", requireAuth, requireCoach, createSquad);
 router.get("/squads/:id", requireAuth, getSquad);
 router.post("/squads/:id/members", requireAuth, requireCoach, addMember);
+router.get("/squads/:id/members", requireAuth, getSquadMembers);
 router.get("/me/squad", requireAuth, getMySquad);
 
 export default router;
