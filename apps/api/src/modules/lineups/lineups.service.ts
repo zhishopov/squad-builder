@@ -1,4 +1,5 @@
 import { pool } from "../../database";
+import { httpError } from "../../utils/httpError";
 
 type Role = "COACH" | "PLAYER";
 
@@ -37,23 +38,19 @@ export async function createLineup(input: {
   const fixture = fixtureResponse.rows[0];
 
   if (!fixture) {
-    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+    throw httpError(404, "Fixture not found");
   }
 
   if (Number(fixture.coach_id) !== Number(input.actingCoachId)) {
-    throw Object.assign(new Error("Forbidden: you do not own this squad"), {
-      status: 403,
-    });
+    throw httpError(403, "Forbidden: you do not own this squad");
   }
 
   if (!Array.isArray(input.players) || input.players.length === 0) {
-    throw Object.assign(new Error("players is required"), { status: 400 });
+    throw httpError(400, "players is required");
   }
 
   if (input.players.length > 18) {
-    throw Object.assign(new Error("Lineup cannot be more than 18 players"), {
-      status: 400,
-    });
+    throw httpError(400, "Lineup cannot be more than 18 players");
   }
 
   const seenUsers = new Set<number>();
@@ -66,24 +63,18 @@ export async function createLineup(input: {
     }
 
     if (seenUsers.has(player.userId)) {
-      throw Object.assign(new Error("Duplicate player in lineup"), {
-        status: 400,
-      });
+      throw httpError(400, "Duplicate player in lineup");
     }
 
     if (seenOrders.has(player.order)) {
-      throw Object.assign(new Error("Duplicate order slot in lineup"), {
-        status: 400,
-      });
+      throw httpError(400, "Duplicate order slot in lineup");
     }
     seenUsers.add(player.userId);
     seenOrders.add(player.order);
   }
 
   if (startersCount > 11) {
-    throw Object.assign(new Error("You can have maximum of 11 starters"), {
-      status: 400,
-    });
+    throw httpError(400, "You can have maximum of 11 starters");
   }
 
   for (const player of input.players) {
@@ -95,13 +86,11 @@ export async function createLineup(input: {
     const user = userResponse.rows[0];
 
     if (!user) {
-      throw Object.assign(new Error("Player not found"), { status: 400 });
+      throw httpError(400, "Player not found");
     }
 
     if (user.role !== "PLAYER") {
-      throw Object.assign(new Error("Only PLAYER users can be in the lineup"), {
-        status: 400,
-      });
+      throw httpError(400, "Only PLAYER users can be in the lineup");
     }
 
     const memberResponse = await pool.query(
@@ -110,9 +99,7 @@ export async function createLineup(input: {
     );
 
     if ((memberResponse.rowCount ?? 0) === 0) {
-      throw Object.assign(new Error("Player is not a member of this squad"), {
-        status: 400,
-      });
+      throw httpError(400, "Player is not a member of this squad");
     }
   }
 
@@ -260,12 +247,10 @@ export async function updateLineupStatus(input: {
 
   const fixture = fixtureResponse.rows[0];
   if (!fixture) {
-    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+    throw httpError(404, "Fixture not found");
   }
   if (Number(fixture.coach_id) !== Number(input.actingCoachId)) {
-    throw Object.assign(new Error("Forbidden: you do not own this squad"), {
-      status: 403,
-    });
+    throw httpError(403, "Forbidden: you do not own this squad");
   }
 
   const lineupResponse = await pool.query(
@@ -273,7 +258,7 @@ export async function updateLineupStatus(input: {
     [input.fixtureId]
   );
   if ((lineupResponse.rowCount ?? 0) === 0) {
-    throw Object.assign(new Error("No lineup to update"), { status: 400 });
+    throw httpError(400, "No lineup to update");
   }
 
   const lineupId = lineupResponse.rows[0].id;

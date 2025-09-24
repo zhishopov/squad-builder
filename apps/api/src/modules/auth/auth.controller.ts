@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { loginSchema, signupSchema } from "./auth.validators";
 import * as authService from "./auth.service";
+import { httpError } from "../../utils/httpError";
 
 export async function signup(req: Request, res: Response, next: NextFunction) {
   try {
@@ -59,7 +60,7 @@ export async function getCurrentUser(
     const payload = await authService.getCurrentUserFromCookie(req);
 
     if (!payload) {
-      return res.status(401).json({ error: "Not Authenticated" });
+      return next(httpError(401, "Not Authenticated"));
     }
 
     res.json({ id: payload.sub, email: payload.email, role: payload.role });

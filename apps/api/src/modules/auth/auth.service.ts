@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { pool } from "../../database";
 import { Request } from "express";
+import { httpError } from "../../utils/httpError";
 
 type Role = "COACH" | "PLAYER";
 
@@ -36,8 +37,7 @@ export async function login(input: { email: string; password: string }) {
 
   const user = result.rows[0];
   if (!user) {
-    // attach status so the middleware doesn't always default to 500 - server error (this is a client error)
-    throw Object.assign(new Error("Invalid credentials"), { status: 400 });
+    throw httpError(400, "Invalid credentials");
   }
 
   const isValidPassword = await bcrypt.compare(
@@ -46,7 +46,7 @@ export async function login(input: { email: string; password: string }) {
   );
 
   if (!isValidPassword) {
-    throw Object.assign(new Error("Invalid credentials"), { status: 400 });
+    throw httpError(400, "Invalid credentials");
   }
 
   const token = jwt.sign(

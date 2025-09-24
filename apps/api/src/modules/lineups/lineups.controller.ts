@@ -6,6 +6,7 @@ import {
   fixtureIdParamSchema,
   updateLineupStatusSchema,
 } from "./lineups.validators";
+import { httpError } from "../../utils/httpError";
 
 type Role = "COACH" | "PLAYER";
 type RequestUser = { id: number; email: string; role: Role };
@@ -18,12 +19,10 @@ export async function saveLineup(
   try {
     const user = (req as any).user as RequestUser | undefined;
     if (!user) {
-      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+      return next(httpError(401, "Unauthorized"));
     }
     if (user.role !== "COACH") {
-      return next(
-        Object.assign(new Error("Forbidden: Coach only"), { status: 403 })
-      );
+      return next(httpError(403, "Forbidden: Coach only"));
     }
 
     const { id: fixtureId } = fixtureIdParamSchema.parse(req.params);
@@ -36,14 +35,13 @@ export async function saveLineup(
         WHERE f.id=$1`,
       [fixtureId]
     );
+
     const fixture = fixtureResponse.rows[0];
     if (!fixture) {
-      return next(
-        Object.assign(new Error("Fixture not found"), { status: 404 })
-      );
+      return next(httpError(404, "Fixture not found"));
     }
     if (Number(fixture.coach_id) !== Number(user.id)) {
-      return next(Object.assign(new Error("Forbidden"), { status: 403 }));
+      return next(httpError(403, "Forbidden"));
     }
 
     const savedLineup = await lineupsService.createLineup({
@@ -72,7 +70,7 @@ export async function getLineup(
   try {
     const user = (req as any).user as RequestUser | undefined;
     if (!user) {
-      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+      return next(httpError(401, "Unauthorized"));
     }
 
     const { id: fixtureId } = fixtureIdParamSchema.parse(req.params);
@@ -86,14 +84,12 @@ export async function getLineup(
     );
     const fixture = fixtureResponse.rows[0];
     if (!fixture) {
-      return next(
-        Object.assign(new Error("Fixture not found"), { status: 404 })
-      );
+      return next(httpError(404, "Fixture not found"));
     }
 
     if (user.role === "COACH") {
       if (Number(fixture.coach_id) !== Number(user.id)) {
-        return next(Object.assign(new Error("Forbidden"), { status: 403 }));
+        return next(httpError(403, "Forbidden"));
       }
     } else {
       const memberResponse = await pool.query(
@@ -101,7 +97,7 @@ export async function getLineup(
         [fixture.squad_id, user.id]
       );
       if ((memberResponse.rowCount ?? 0) === 0) {
-        return next(Object.assign(new Error("Forbidden"), { status: 403 }));
+        return next(httpError(403, "Forbidden"));
       }
     }
 
@@ -120,12 +116,10 @@ export async function updateLineupStatus(
   try {
     const user = (req as any).user as RequestUser | undefined;
     if (!user) {
-      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+      return next(httpError(401, "Unauthorized"));
     }
     if (user.role !== "COACH") {
-      return next(
-        Object.assign(new Error("Forbidden: Coach only"), { status: 403 })
-      );
+      return next(httpError(403, "Forbidden: Coach only"));
     }
 
     const { id: fixtureId } = fixtureIdParamSchema.parse(req.params);
@@ -140,12 +134,10 @@ export async function updateLineupStatus(
     );
     const fixture = fixtureResponse.rows[0];
     if (!fixture) {
-      return next(
-        Object.assign(new Error("Fixture not found"), { status: 404 })
-      );
+      return next(httpError(404, "Fixture not found"));
     }
     if (Number(fixture.coach_id) !== Number(user.id)) {
-      return next(Object.assign(new Error("Forbidden"), { status: 403 }));
+      return next(httpError(403, "Forbidden"));
     }
 
     const updatedLineup = await lineupsService.updateLineupStatus({

@@ -1,4 +1,5 @@
 import { pool } from "../../database";
+import { httpError } from "../../utils/httpError";
 
 type Role = "COACH" | "PLAYER";
 
@@ -23,13 +24,11 @@ export async function createFixture(input: {
 
   const squad = squadResponse.rows[0];
   if (!squad) {
-    throw Object.assign(new Error("Squad not found"), { status: 404 });
+    throw httpError(404, "Squad not found");
   }
 
   if (Number(squad.coach_id) !== Number(input.actingCoachId)) {
-    throw Object.assign(new Error("Forbidden: you do not own this squad"), {
-      status: 403,
-    });
+    throw httpError(403, "Forbidden: you do not own this squad");
   }
 
   const fixture = await pool.query(
@@ -51,7 +50,7 @@ export async function getFixtureById(fixtureId: number) {
 
   const fixture = fixtureResponse.rows[0];
   if (!fixture) {
-    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+    throw httpError(404, "Fixture not found");
   }
 
   const availabilityResponse = await pool.query(
@@ -103,13 +102,13 @@ export async function setAvailability(input: {
 
   const fixture = fixtureResponse.rows[0];
   if (!fixture) {
-    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+    throw httpError(404, "Fixture not found");
   }
 
   let targetUserId = input.userId;
   if (input.actingUserRole === "PLAYER") {
     if (!input.actingUserId) {
-      throw Object.assign(new Error("Unauthorized"), { status: 401 });
+      throw httpError(401, "Unauthorized");
     }
     targetUserId = input.actingUserId;
   } else if (input.actingUserRole === "COACH") {
@@ -123,12 +122,10 @@ export async function setAvailability(input: {
 
   const user = userResponse.rows[0];
   if (!user) {
-    throw Object.assign(new Error("User not found"), { status: 400 });
+    throw httpError(400, "User not found");
   }
   if (user.role !== "PLAYER") {
-    throw Object.assign(new Error("Only players can set availability"), {
-      status: 403,
-    });
+    throw httpError(403, "Only players can set availability");
   }
 
   const memberResponse = await pool.query(
@@ -138,10 +135,7 @@ export async function setAvailability(input: {
 
   const memberCount = memberResponse.rowCount ?? 0;
   if (memberCount === 0) {
-    throw Object.assign(
-      new Error("You are not a member of the fixture's squad"),
-      { status: 403 }
-    );
+    throw httpError(403, "You are not a member of the fixture's squad");
   }
 
   const updateResponse = await pool.query(
@@ -190,13 +184,11 @@ export async function updateFixture(input: {
 
   const fixture = fixtureResponse.rows[0];
   if (!fixture) {
-    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+    throw httpError(404, "Fixture not found");
   }
 
   if (Number(fixture.coach_id) !== Number(input.actingCoachId)) {
-    throw Object.assign(new Error("Forbidden: you do not own this squad"), {
-      status: 403,
-    });
+    throw httpError(403, "Forbidden: you do not own this squad");
   }
 
   const updateFields: string[] = [];
@@ -226,7 +218,7 @@ export async function updateFixture(input: {
   }
 
   if (updateFields.length === 0) {
-    throw Object.assign(new Error("No fields to update"), { status: 400 });
+    throw httpError(400, "No fields to update");
   }
 
   updateValues.push(input.fixtureId);
@@ -254,13 +246,11 @@ export async function deleteFixture(input: {
 
   const fixture = fixtureResponse.rows[0];
   if (!fixture) {
-    throw Object.assign(new Error("Fixture not found"), { status: 404 });
+    throw httpError(404, "Fixture not found");
   }
 
   if (Number(fixture.coach_id) !== Number(input.actingCoachId)) {
-    throw Object.assign(new Error("Forbidden: you do not own this squad"), {
-      status: 403,
-    });
+    throw httpError(403, "Forbidden: you do not own this squad");
   }
 
   const deleteResponse = await pool.query(
@@ -269,7 +259,7 @@ export async function deleteFixture(input: {
   );
 
   if ((deleteResponse.rowCount ?? 0) === 0) {
-    throw Object.assign(new Error("Nothing deleted"), { status: 400 });
+    throw httpError(400, "Nothing deleted");
   }
 
   return { id: deleteResponse.rows[0].id as number, deleted: true };
