@@ -9,6 +9,7 @@ import squadRoutes from "./modules/squads/squads.routes";
 import fixtureRoutes from "./modules/fixtures/fixtures.routes";
 import lineupsRoutes from "./modules/lineups/lineups.routes";
 import usersRoutes from "./modules/users/users.routes";
+import { setUserFromCookie } from "./middleware/auth";
 
 const app = express();
 
@@ -18,6 +19,7 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
+app.use(setUserFromCookie);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ ok: true, service: "api", uptime: process.uptime() });
