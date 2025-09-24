@@ -5,6 +5,7 @@ import {
   squadIdParamSchema,
   addMemberSchema,
 } from "./squads.validators";
+import { httpError } from "../../utils/httpError";
 
 type Role = "COACH" | "PLAYER";
 
@@ -24,13 +25,11 @@ export async function createSquad(
 
     const user = (req as any).user as ReqUser | undefined;
     if (!user) {
-      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+      return next(httpError(401, "Unauthorized"));
     }
 
     if (user.role !== "COACH") {
-      return next(
-        Object.assign(new Error("Forbidden: Coach only"), { status: 403 })
-      );
+      return next(httpError(403, "Forbidden: Coach only"));
     }
 
     const squad = await squadsService.createSquad({
@@ -59,7 +58,7 @@ export async function getSquad(
 
     const user = (req as any).user as ReqUser | undefined;
     if (!user) {
-      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+      return next(httpError(401, "Unauthorized"));
     }
 
     const squad = await squadsService.getSquadById(id);
@@ -71,7 +70,7 @@ export async function getSquad(
     );
 
     if (!isOwner && !isMember) {
-      return next(Object.assign(new Error("Forbidden"), { status: 403 }));
+      return next(httpError(403, "Forbidden"));
     }
 
     res.json(squad);
@@ -92,12 +91,10 @@ export async function addMember(
 
     const user = (req as any).user as ReqUser | undefined;
     if (!user) {
-      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+      return next(httpError(401, "Unauthorized"));
     }
     if (user.role !== "COACH") {
-      return next(
-        Object.assign(new Error("Forbidden: Coach only"), { status: 403 })
-      );
+      return next(httpError(403, "Forbidden: Coach only"));
     }
 
     const member = await squadsService.addMember({
@@ -121,7 +118,7 @@ export async function getMySquad(
   try {
     const user = (req as any).user as ReqUser | undefined;
     if (!user) {
-      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+      return next(httpError(401, "Unauthorized"));
     }
 
     const squad = await squadsService.getSquadForUser({
@@ -145,7 +142,7 @@ export async function getSquadMembers(
 
     const user = (req as any).user as ReqUser | undefined;
     if (!user) {
-      return next(Object.assign(new Error("Unauthorized"), { status: 401 }));
+      return next(httpError(401, "Unauthorized"));
     }
 
     const squad = await squadsService.getSquadById(id);
@@ -158,7 +155,7 @@ export async function getSquadMembers(
     );
 
     if (!isSquadOwner && !isSquadMember) {
-      return next(Object.assign(new Error("Forbidden"), { status: 403 }));
+      return next(httpError(403, "Forbidden"));
     }
 
     const members = await squadsService.listSquadMembers(id);

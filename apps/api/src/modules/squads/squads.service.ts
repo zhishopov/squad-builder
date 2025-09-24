@@ -1,4 +1,5 @@
 import { pool } from "../../database";
+import { httpError } from "../../utils/httpError";
 
 type Role = "COACH" | "PLAYER";
 
@@ -10,11 +11,8 @@ export async function createSquad(input: { name: string; coachId: number }) {
     [input.coachId]
   );
 
-  const count = existingCoach.rowCount ?? 0;
-  if (count > 0) {
-    throw Object.assign(new Error("Coach already owns a squad"), {
-      status: 400,
-    });
+  if ((existingCoach.rowCount ?? 0) > 0) {
+    throw httpError(400, "Coach already owns a squad");
   }
 
   const result = await pool.query(
@@ -35,7 +33,7 @@ export async function getSquadById(squadId: number) {
 
   const squad = squadResponse.rows[0];
   if (!squad) {
-    throw Object.assign(new Error("Squad not found"), { status: 404 });
+    throw httpError(404, "Squad not found");
   }
 
   const membersResponse = await pool.query(
@@ -80,12 +78,10 @@ export async function addMember(input: {
   const squad = squadResponse.rows[0];
 
   if (!squad) {
-    throw Object.assign(new Error("Squad not found"), { status: 404 });
+    throw httpError(404, "Squad not found");
   }
   if (Number(squad.coach_id) !== Number(input.actingCoachId)) {
-    throw Object.assign(new Error("Forbidden: you do not own this squad"), {
-      status: 403,
-    });
+    throw httpError(403, "Forbidden: you do not own this squad");
   }
 
   const userResponse = await pool.query(
@@ -95,12 +91,10 @@ export async function addMember(input: {
   const user = userResponse.rows[0];
 
   if (!user) {
-    throw Object.assign(new Error("User not found"), { status: 400 });
+    throw httpError(400, "User not found");
   }
   if (user.role !== "PLAYER") {
-    throw Object.assign(new Error("Only players can be added to a squad"), {
-      status: 400,
-    });
+    throw httpError(400, "Only players can be added to a squad");
   }
 
   const playerExistsResponse = await pool.query(
@@ -108,11 +102,8 @@ export async function addMember(input: {
     [input.squadId, input.userId]
   );
 
-  const count = playerExistsResponse.rowCount ?? 0;
-  if (count > 0) {
-    throw Object.assign(new Error("User is already a member of this squad"), {
-      status: 400,
-    });
+  if ((playerExistsResponse.rowCount ?? 0) > 0) {
+    throw httpError(400, "User is already a member of this squad");
   }
 
   const result = await pool.query(
@@ -162,9 +153,8 @@ export async function listSquadMembers(squadId: number) {
     squadId,
   ]);
 
-  const squad = squadResponse.rows[0];
-  if (!squad) {
-    throw Object.assign(new Error("Squad not found"), { status: 404 });
+  if (!squadResponse.rows[0]) {
+    throw httpError(404, "Squad not found");
   }
 
   const membersResponse = await pool.query(
