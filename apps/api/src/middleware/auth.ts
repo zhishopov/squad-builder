@@ -15,18 +15,20 @@ export async function requireAuth(
   next: NextFunction
 ) {
   try {
-    const payload = await authService.getCurrentUserFromCookie(req);
+    const user = (req as any).user as RequestUser | undefined;
 
-    if (!payload) {
-      const error = Object.assign(new Error("Unauthorized"), { status: 401 });
-      return next(error);
+    if (!user) {
+      const payload = await authService.getCurrentUserFromCookie(req);
+      if (!payload) {
+        const error = Object.assign(new Error("Unauthorized"), { status: 401 });
+        return next(error);
+      }
+      (req as any).user = {
+        id: Number(payload.sub),
+        email: payload.email,
+        role: payload.role,
+      } as RequestUser;
     }
-
-    (req as any).user = {
-      id: Number(payload.sub),
-      email: payload.email,
-      role: payload.role,
-    } as RequestUser;
 
     next();
   } catch (error) {
@@ -49,4 +51,29 @@ export function requireCoach(req: Request, res: Response, next: NextFunction) {
     return next(error);
   }
   next();
+}
+
+export async function setUserFromCookie(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const payload = await authService.getCurrentUserFromCookie(req);
+
+    if (payload) {
+      (req as any).user = {
+        id: Number(payload.sub),
+        email: payload.email,
+        role: payload.role,
+      } as RequestUser;
+    } else {
+      (req as any).user = undefined;
+    }
+
+    next();
+  } catch (_err) {
+    (req as any).user = undefined;
+    next();
+  }
 }
