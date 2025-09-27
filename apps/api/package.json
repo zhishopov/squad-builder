@@ -9,8 +9,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:make": "node-pg-migrate create -m ./migrations",
-    "db:migrate": "dotenv -e .env -- node-pg-migrate up -m ./migrations -d $DATABASE_URL",
-    "db:rollback": "dotenv -e .env -- node-pg-migrate down -m ./migrations -d $DATABASE_URL"
+    "db:migrate": "dotenv -e .env -- node-pg-migrate up -m ./migrations",
+    "db:rollback": "dotenv -e .env -- node-pg-migrate down -m ./migrations"
   },
   "keywords": [],
   "author": "",

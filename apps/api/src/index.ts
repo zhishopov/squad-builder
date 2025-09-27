@@ -72,7 +72,7 @@ const corsOptions: CorsOptions = {
   exposedHeaders: ["Content-Length"],
   maxAge: 600,
 };
-app.options("*", cors(corsOptions));
+
 app.use(cors(corsOptions));
 
 app.use(express.json());
