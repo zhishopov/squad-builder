@@ -100,7 +100,7 @@ export async function addMember(
     const member = await squadsService.addMember({
       squadId: id,
       userId: body.userId,
-      preferredPosition: body.preferredPosition,
+      preferredPosition: body.preferredPosition ?? "UNASSIGNED",
       actingCoachId: user.id,
     });
 
