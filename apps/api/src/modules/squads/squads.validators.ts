@@ -36,5 +36,5 @@ export type Position = z.infer<typeof PositionEnum>;
 
 export const addMemberSchema = z.object({
   userId: z.number().int().positive("userId must be a positive integer"),
-  preferredPosition: PositionEnum,
+  preferredPosition: PositionEnum.optional().nullable(),
 });
