@@ -80,7 +80,7 @@ export async function getFixtureById(fixtureId: number) {
 
 export async function listFixturesForSquad(squadId: number) {
   const fixtureResponse = await pool.query(
-    `SELECT id, squad_id, opponent, kickoff_at, location, created_at
+    `SELECT id, squad_id, opponent, kickoff_at, location, notes, created_at
      FROM fixtures WHERE squad_id=$1 ORDER BY kickoff_at ASC`,
     [squadId]
   );
