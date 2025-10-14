@@ -53,12 +53,43 @@ export async function getFixtureById(fixtureId: number) {
     throw httpError(404, "Fixture not found");
   }
 
+  const playersResponse = await pool.query(
+    `SELECT u.id, u.email, u.role
+       FROM squad_members sm
+       JOIN users u ON u.id = sm.user_id
+      WHERE sm.squad_id = $1 AND u.role = 'PLAYER'
+      ORDER BY u.email ASC`,
+    [fixture.squad_id]
+  );
+
   const availabilityResponse = await pool.query(
-    `SELECT fa.user_id, u.email, u.role, fa.availability, fa.updated_at
-     FROM fixture_availability fa JOIN users u ON u.id=fa.user_id WHERE fa.fixture_id=$1
-     ORDER BY fa.updated_at DESC`,
+    `SELECT fa.user_id, fa.availability, fa.updated_at
+       FROM fixture_availability fa
+      WHERE fa.fixture_id = $1`,
     [fixtureId]
   );
+
+  const availabilityMap = new Map<
+    number,
+    { availability: string; updatedAt: Date }
+  >();
+  for (const row of availabilityResponse.rows) {
+    availabilityMap.set(row.user_id, {
+      availability: row.availability,
+      updatedAt: row.updated_at,
+    });
+  }
+
+  const mergedAvailability = playersResponse.rows.map((player) => {
+    const match = availabilityMap.get(player.id);
+    return {
+      userId: player.id,
+      email: player.email as string,
+      role: player.role as Role,
+      availability: (match?.availability as Availability) ?? "—",
+      updatedAt: match?.updatedAt ?? null,
+    };
+  });
 
   return {
     id: fixture.id,
@@ -68,13 +99,7 @@ export async function getFixtureById(fixtureId: number) {
     location: fixture.location as string | null,
     notes: fixture.notes as string | null,
     createdAt: fixture.created_at as Date,
-    availability: availabilityResponse.rows.map((row) => ({
-      userId: row.user_id,
-      email: row.email as string,
-      role: row.role as Role,
-      availability: row.availability as Availability,
-      updatedAt: row.updated_at as Date,
-    })),
+    availability: mergedAvailability,
   };
 }
 
