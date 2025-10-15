@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export type Availability = "YES" | "NO" | "MAYBE";
 export const AvailabilityEnum = z.enum(["YES", "NO", "MAYBE"]);
+export type Availability = z.infer<typeof AvailabilityEnum>;
 
 export const fixtureIdParamSchema = z.object({
   id: z

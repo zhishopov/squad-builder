@@ -2,7 +2,6 @@ import { pool } from "../../database";
 import { httpError } from "../../utils/httpError";
 
 type Role = "COACH" | "PLAYER";
-
 export type Availability = "YES" | "NO" | "MAYBE";
 
 export async function createFixture(input: {
@@ -21,12 +20,8 @@ export async function createFixture(input: {
     `SELECT id, coach_id FROM squads WHERE id=$1`,
     [input.squadId]
   );
-
   const squad = squadResponse.rows[0];
-  if (!squad) {
-    throw httpError(404, "Squad not found");
-  }
-
+  if (!squad) throw httpError(404, "Squad not found");
   if (Number(squad.coach_id) !== Number(input.actingCoachId)) {
     throw httpError(403, "Forbidden: you do not own this squad");
   }
@@ -49,29 +44,27 @@ export async function getFixtureById(fixtureId: number) {
   );
 
   const fixture = fixtureResponse.rows[0];
-  if (!fixture) {
-    throw httpError(404, "Fixture not found");
-  }
+  if (!fixture) throw httpError(404, "Fixture not found");
 
   const playersResponse = await pool.query(
     `SELECT u.id, u.email, u.role
-       FROM squad_members sm
-       JOIN users u ON u.id = sm.user_id
-      WHERE sm.squad_id = $1 AND u.role = 'PLAYER'
-      ORDER BY u.email ASC`,
+     FROM squad_members sm
+     JOIN users u ON u.id = sm.user_id
+     WHERE sm.squad_id = $1 AND u.role = 'PLAYER'
+     ORDER BY u.email ASC`,
     [fixture.squad_id]
   );
 
   const availabilityResponse = await pool.query(
     `SELECT fa.user_id, fa.availability, fa.updated_at
-       FROM fixture_availability fa
-      WHERE fa.fixture_id = $1`,
+     FROM fixture_availability fa
+     WHERE fa.fixture_id=$1`,
     [fixtureId]
   );
 
   const availabilityMap = new Map<
     number,
-    { availability: string; updatedAt: Date }
+    { availability: Availability; updatedAt: Date }
   >();
   for (const row of availabilityResponse.rows) {
     availabilityMap.set(row.user_id, {
@@ -86,7 +79,7 @@ export async function getFixtureById(fixtureId: number) {
       userId: player.id,
       email: player.email as string,
       role: player.role as Role,
-      availability: (match?.availability as Availability) ?? "—",
+      availability: match?.availability ?? "—",
       updatedAt: match?.updatedAt ?? null,
     };
   });
@@ -104,89 +97,63 @@ export async function getFixtureById(fixtureId: number) {
 }
 
 export async function listFixturesForSquad(squadId: number) {
-  const fixtureResponse = await pool.query(
+  const response = await pool.query(
     `SELECT id, squad_id, opponent, kickoff_at, location, notes, created_at
-     FROM fixtures WHERE squad_id=$1 ORDER BY kickoff_at ASC`,
+     FROM fixtures
+     WHERE squad_id=$1
+     ORDER BY kickoff_at ASC`,
     [squadId]
   );
-
-  return fixtureResponse.rows;
+  return response.rows;
 }
 
 export async function setAvailability(input: {
   fixtureId: number;
   userId: number;
   availability: Availability;
-  actingUserId?: number;
-  actingUserRole?: Role;
+  actingUserId: number;
+  actingUserRole: Role;
 }) {
   const fixtureResponse = await pool.query(
     `SELECT id, squad_id FROM fixtures WHERE id=$1`,
     [input.fixtureId]
   );
-
   const fixture = fixtureResponse.rows[0];
-  if (!fixture) {
-    throw httpError(404, "Fixture not found");
-  }
+  if (!fixture) throw httpError(404, "Fixture not found");
 
   let targetUserId = input.userId;
   if (input.actingUserRole === "PLAYER") {
-    if (!input.actingUserId) {
-      throw httpError(401, "Unauthorized");
-    }
     targetUserId = input.actingUserId;
-  } else if (input.actingUserRole === "COACH") {
-    targetUserId = input.userId;
   }
 
-  const userResponse = await pool.query(
-    `SELECT id, role FROM users WHERE id=$1`,
-    [targetUserId]
-  );
-
-  const user = userResponse.rows[0];
-  if (!user) {
-    throw httpError(400, "User not found");
-  }
-  if (user.role !== "PLAYER") {
-    throw httpError(403, "Only players can set availability");
-  }
-
-  const memberResponse = await pool.query(
-    `SELECT id FROM squad_members WHERE squad_id=$1 AND user_id=$2`,
+  const memberCheck = await pool.query(
+    `SELECT u.role
+     FROM squad_members sm
+     JOIN users u ON u.id = sm.user_id
+     WHERE sm.squad_id=$1 AND sm.user_id=$2`,
     [fixture.squad_id, targetUserId]
   );
 
-  const memberCount = memberResponse.rowCount ?? 0;
-  if (memberCount === 0) {
-    throw httpError(403, "You are not a member of the fixture's squad");
-  }
+  const member = memberCheck.rows[0];
+  if (!member) throw httpError(403, "User is not part of this squad");
+  if (member.role !== "PLAYER")
+    throw httpError(403, "Only players have availability");
 
-  const updateResponse = await pool.query(
-    `UPDATE fixture_availability SET availability=$1, updated_at=now() WHERE fixture_id=$2 AND user_id=$3`,
-    [input.availability, input.fixtureId, targetUserId]
-  );
+  const upsertQuery = `
+    INSERT INTO fixture_availability (fixture_id, user_id, availability)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (fixture_id, user_id)
+    DO UPDATE SET availability = $3, updated_at = now()
+    RETURNING id, fixture_id, user_id, availability, updated_at
+  `;
 
-  const updatedCount = updateResponse.rowCount ?? 0;
-  if (updatedCount === 0) {
-    const insertResponse = await pool.query(
-      `INSERT INTO fixture_availability (fixture_id, user_id, availability)
-       VALUES ($1, $2, $3)
-       RETURNING id, fixture_id, user_id, availability, updated_at`,
-      [input.fixtureId, targetUserId, input.availability]
-    );
+  const result = await pool.query(upsertQuery, [
+    input.fixtureId,
+    targetUserId,
+    input.availability,
+  ]);
 
-    return insertResponse.rows[0];
-  }
-
-  const finalResponse = await pool.query(
-    `SELECT id, fixture_id, user_id, availability, updated_at FROM fixture_availability
-     WHERE fixture_id=$1 AND user_id=$2`,
-    [input.fixtureId, targetUserId]
-  );
-
-  return finalResponse.rows[0];
+  return result.rows[0];
 }
 
 export async function updateFixture(input: {
@@ -201,17 +168,14 @@ export async function updateFixture(input: {
 }) {
   const fixtureResponse = await pool.query(
     `SELECT f.id, f.squad_id, s.coach_id
-       FROM fixtures f
-       JOIN squads s ON s.id = f.squad_id
-      WHERE f.id=$1`,
+     FROM fixtures f
+     JOIN squads s ON s.id = f.squad_id
+     WHERE f.id=$1`,
     [input.fixtureId]
   );
 
   const fixture = fixtureResponse.rows[0];
-  if (!fixture) {
-    throw httpError(404, "Fixture not found");
-  }
-
+  if (!fixture) throw httpError(404, "Fixture not found");
   if (Number(fixture.coach_id) !== Number(input.actingCoachId)) {
     throw httpError(403, "Forbidden: you do not own this squad");
   }
@@ -231,20 +195,18 @@ export async function updateFixture(input: {
   }
 
   if (typeof input.changes.location === "string") {
-    const fixtureLocation = input.changes.location.trim();
+    const loc = input.changes.location.trim();
     updateFields.push(`location=$${paramIndex++}`);
-    updateValues.push(fixtureLocation.length > 0 ? fixtureLocation : null);
+    updateValues.push(loc.length > 0 ? loc : null);
   }
 
   if (typeof input.changes.notes === "string") {
-    const fixtureNotes = input.changes.notes.trim();
+    const note = input.changes.notes.trim();
     updateFields.push(`notes=$${paramIndex++}`);
-    updateValues.push(fixtureNotes.length > 0 ? fixtureNotes : null);
+    updateValues.push(note.length > 0 ? note : null);
   }
 
-  if (updateFields.length === 0) {
-    throw httpError(400, "No fields to update");
-  }
+  if (updateFields.length === 0) throw httpError(400, "No fields to update");
 
   updateValues.push(input.fixtureId);
 
@@ -263,17 +225,14 @@ export async function deleteFixture(input: {
 }) {
   const fixtureResponse = await pool.query(
     `SELECT f.id, f.squad_id, s.coach_id
-       FROM fixtures f
-       JOIN squads s ON s.id = f.squad_id
-      WHERE f.id=$1`,
+     FROM fixtures f
+     JOIN squads s ON s.id = f.squad_id
+     WHERE f.id=$1`,
     [input.fixtureId]
   );
 
   const fixture = fixtureResponse.rows[0];
-  if (!fixture) {
-    throw httpError(404, "Fixture not found");
-  }
-
+  if (!fixture) throw httpError(404, "Fixture not found");
   if (Number(fixture.coach_id) !== Number(input.actingCoachId)) {
     throw httpError(403, "Forbidden: you do not own this squad");
   }

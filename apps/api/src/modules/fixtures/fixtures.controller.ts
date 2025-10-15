@@ -19,16 +19,12 @@ export async function createFixture(
   next: NextFunction
 ) {
   try {
-    const user = (req as any).user as ReqUser | undefined;
-    if (!user) {
-      return next(httpError(401, "Unauthorized"));
-    }
-    if (user.role !== "COACH") {
+    const user = (req as any).user as ReqUser;
+    if (!user) return next(httpError(401, "Unauthorized"));
+    if (user.role !== "COACH")
       return next(httpError(403, "Forbidden: Coach only"));
-    }
 
     const body = createFixtureSchema.parse(req.body);
-
     const squadId = Number(req.body?.squadId);
     if (!squadId || Number.isNaN(squadId)) {
       return next(httpError(400, "squadId is required and must be a number"));
@@ -48,8 +44,8 @@ export async function createFixture(
       actingCoachId: user.id,
     };
 
-    if (body.location) payload.location = body.location;
-    if (body.notes) payload.notes = body.notes;
+    if (body.location !== undefined) payload.location = body.location;
+    if (body.notes !== undefined) payload.notes = body.notes;
 
     const fixture = await fixturesService.createFixture(payload);
     res.status(201).json(fixture);
@@ -64,10 +60,8 @@ export async function getFixture(
   next: NextFunction
 ) {
   try {
-    const user = (req as any).user as ReqUser | undefined;
-    if (!user) {
-      return next(httpError(401, "Unauthorized"));
-    }
+    const user = (req as any).user as ReqUser;
+    if (!user) return next(httpError(401, "Unauthorized"));
 
     const { id: fixtureId } = fixtureIdParamSchema.parse(req.params);
     const fixture = await fixturesService.getFixtureById(fixtureId);
@@ -77,17 +71,14 @@ export async function getFixture(
         `SELECT id FROM squads WHERE id=$1 AND coach_id=$2`,
         [fixture.squadId, user.id]
       );
-      if ((owns.rowCount ?? 0) === 0) {
-        return next(httpError(403, "Forbidden"));
-      }
+      if ((owns.rowCount ?? 0) === 0) return next(httpError(403, "Forbidden"));
     } else {
       const member = await pool.query(
         `SELECT id FROM squad_members WHERE squad_id=$1 AND user_id=$2`,
         [fixture.squadId, user.id]
       );
-      if ((member.rowCount ?? 0) === 0) {
+      if ((member.rowCount ?? 0) === 0)
         return next(httpError(403, "Forbidden"));
-      }
     }
 
     res.json(fixture);
@@ -102,31 +93,10 @@ export async function listFixturesForSquad(
   next: NextFunction
 ) {
   try {
-    const user = (req as any).user as ReqUser | undefined;
-    if (!user) {
-      return next(httpError(401, "Unauthorized"));
-    }
+    const user = (req as any).user as ReqUser;
+    if (!user) return next(httpError(401, "Unauthorized"));
 
     const { id: squadId } = squadIdParamSchema.parse(req.params);
-
-    if (user.role === "COACH") {
-      const owns = await pool.query(
-        `SELECT id FROM squads WHERE id=$1 AND coach_id=$2`,
-        [squadId, user.id]
-      );
-      if ((owns.rowCount ?? 0) === 0) {
-        return next(httpError(403, "Forbidden"));
-      }
-    } else {
-      const member = await pool.query(
-        `SELECT id FROM squad_members WHERE squad_id=$1 AND user_id=$2`,
-        [squadId, user.id]
-      );
-      if ((member.rowCount ?? 0) === 0) {
-        return next(httpError(403, "Forbidden"));
-      }
-    }
-
     const fixtures = await fixturesService.listFixturesForSquad(squadId);
     res.json(fixtures);
   } catch (error) {
@@ -140,32 +110,14 @@ export async function setAvailability(
   next: NextFunction
 ) {
   try {
-    const user = (req as any).user as ReqUser | undefined;
-    if (!user) {
-      return next(httpError(401, "Unauthorized"));
-    }
+    const user = (req as any).user as ReqUser;
+    if (!user) return next(httpError(401, "Unauthorized"));
 
     const { id: fixtureId } = fixtureIdParamSchema.parse(req.params);
     const body = setAvailabilitySchema.parse(req.body);
 
-    if (user.role === "COACH") {
-      const fx = await pool.query(`SELECT squad_id FROM fixtures WHERE id=$1`, [
-        fixtureId,
-      ]);
-      const row = fx.rows[0];
-      if (!row) {
-        return next(httpError(404, "Fixture not found"));
-      }
-      const owns = await pool.query(
-        `SELECT id FROM squads WHERE id=$1 AND coach_id=$2`,
-        [row.squad_id, user.id]
-      );
-      if ((owns.rowCount ?? 0) === 0) {
-        return next(httpError(403, "Forbidden"));
-      }
-      if (!body.userId) {
-        return next(httpError(400, "userId is required for coach updates"));
-      }
+    if (user.role === "COACH" && !body.userId) {
+      return next(httpError(400, "userId is required for coach updates"));
     }
 
     const saved = await fixturesService.setAvailability({
@@ -188,14 +140,10 @@ export async function updateFixture(
   next: NextFunction
 ) {
   try {
-    const user = (req as any).user as ReqUser | undefined;
-    if (!user) {
-      return next(httpError(401, "Unauthorized"));
-    }
-
-    if (user.role !== "COACH") {
+    const user = (req as any).user as ReqUser;
+    if (!user) return next(httpError(401, "Unauthorized"));
+    if (user.role !== "COACH")
       return next(httpError(403, "Forbidden: Coach only"));
-    }
 
     const { id: fixtureId } = fixtureIdParamSchema.parse(req.params);
     const body = updateFixtureSchema.parse(req.body);
@@ -215,9 +163,8 @@ export async function updateFixture(
     const updatedFixture = await fixturesService.updateFixture({
       fixtureId,
       actingCoachId: user.id,
-      changes: changes,
+      changes,
     });
-
     res.json(updatedFixture);
   } catch (error) {
     next(error);
@@ -230,16 +177,12 @@ export async function deleteFixture(
   next: NextFunction
 ) {
   try {
-    const user = (req as any).user as ReqUser | undefined;
-    if (!user) {
-      return next(httpError(401, "Unauthorized"));
-    }
-    if (user.role !== "COACH") {
+    const user = (req as any).user as ReqUser;
+    if (!user) return next(httpError(401, "Unauthorized"));
+    if (user.role !== "COACH")
       return next(httpError(403, "Forbidden: Coach only"));
-    }
 
     const { id: fixtureId } = fixtureIdParamSchema.parse(req.params);
-
     const result = await fixturesService.deleteFixture({
       fixtureId,
       actingCoachId: user.id,
