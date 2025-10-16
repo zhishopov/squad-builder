@@ -139,21 +139,32 @@ export async function setAvailability(input: {
   if (member.role !== "PLAYER")
     throw httpError(403, "Only players have availability");
 
-  const upsertQuery = `
-    INSERT INTO fixture_availability (fixture_id, user_id, availability)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (fixture_id, user_id)
-    DO UPDATE SET availability = $3, updated_at = now()
-    RETURNING id, fixture_id, user_id, availability, updated_at
-  `;
+  const updateResponse = await pool.query(
+    `UPDATE fixture_availability
+     SET availability=$1, updated_at=now()
+     WHERE fixture_id=$2 AND user_id=$3`,
+    [input.availability, input.fixtureId, targetUserId]
+  );
 
-  const result = await pool.query(upsertQuery, [
-    input.fixtureId,
-    targetUserId,
-    input.availability,
-  ]);
+  const updatedCount = updateResponse.rowCount ?? 0;
+  if (updatedCount === 0) {
+    const insertResponse = await pool.query(
+      `INSERT INTO fixture_availability (fixture_id, user_id, availability)
+       VALUES ($1, $2, $3)
+       RETURNING id, fixture_id, user_id, availability, updated_at`,
+      [input.fixtureId, targetUserId, input.availability]
+    );
+    return insertResponse.rows[0];
+  }
 
-  return result.rows[0];
+  const finalResponse = await pool.query(
+    `SELECT id, fixture_id, user_id, availability, updated_at
+     FROM fixture_availability
+     WHERE fixture_id=$1 AND user_id=$2`,
+    [input.fixtureId, targetUserId]
+  );
+
+  return finalResponse.rows[0];
 }
 
 export async function updateFixture(input: {
