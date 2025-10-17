@@ -42,8 +42,29 @@ export const createFixtureSchema = z.object({
 });
 
 export const setAvailabilitySchema = z.object({
-  availability: AvailabilityEnum,
-  userId: z.number().int().positive().optional(),
+  availability: z
+    .string()
+    .transform((value) => value.trim().toUpperCase())
+    .pipe(
+      AvailabilityEnum.superRefine((value, ctx) => {
+        if (!["YES", "NO", "MAYBE"].includes(value)) {
+          ctx.addIssue({
+            code: "custom",
+            message: 'Invalid option: expected one of "YES"|"NO"|"MAYBE"',
+            path: ["availability"],
+          });
+        }
+      })
+    ),
+  userId: z
+    .union([
+      z.number().int().positive(),
+      z
+        .string()
+        .regex(/^\d+$/, "userId must be a number")
+        .transform((value) => Number(value)),
+    ])
+    .optional(),
 });
 
 export const updateFixtureSchema = z
