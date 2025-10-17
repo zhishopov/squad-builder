@@ -8,16 +8,20 @@ export function errorHandler(
 ) {
   const status = typeof error?.status === "number" ? error.status : 500;
 
-  let message;
+  let message: string;
 
   if (process.env.NODE_ENV === "production") {
-    message = status === 404 ? "Not Found" : "Something went wrong";
+    if (status === 401) message = "Unauthorized";
+    else if (status === 403) message = "Forbidden";
+    else if (status === 400) message = error?.message || "Bad Request";
+    else if (status === 404) message = "Not Found";
+    else message = "Something went wrong";
   } else {
     message = error?.message || "Unknown error";
   }
 
   if (process.env.NODE_ENV !== "production") {
-    console.log("Error: ", error);
+    console.log("Error:", error);
   }
 
   res.status(status).json({ error: message });
